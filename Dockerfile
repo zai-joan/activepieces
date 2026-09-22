@@ -1,7 +1,8 @@
-# syntax=docker/dockerfile:1.7
-# Required so the `RUN --mount=type=cache` lines below parse. Upstream relies on
-# the builder defaulting to BuildKit; Railway's validates with the classic parser
-# first, which rejects --mount without this directive.
+# Upstream uses `RUN --mount=type=cache` on the npm/bun installs below. Railway's
+# builder rejects those outright — the build dies before anything is parsed, with
+# no log beyond "scheduling build" — so they are removed on this branch. They only
+# make rebuilds faster; the image is byte-for-byte the same without them. If a
+# rebase brings them back, the build will start failing again for no stated reason.
 FROM node:24.14.0-bullseye-slim AS base
 
 # C.UTF-8 ships with Debian, so no locale generation is needed.
