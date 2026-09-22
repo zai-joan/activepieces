@@ -1,3 +1,7 @@
+# syntax=docker/dockerfile:1.7
+# Required so the `RUN --mount=type=cache` lines below parse. Upstream relies on
+# the builder defaulting to BuildKit; Railway's validates with the classic parser
+# first, which rejects --mount without this directive.
 FROM node:24.14.0-bullseye-slim AS base
 
 # C.UTF-8 ships with Debian, so no locale generation is needed.
