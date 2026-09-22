@@ -56,15 +56,13 @@ RUN export ARCH=$(uname -m) && \
     bun --version
 
 # Install global npm packages in a single layer
-RUN --mount=type=cache,target=/root/.npm \
-    npm install -g --no-fund --no-audit \
+RUN     npm install -g --no-fund --no-audit \
     node-gyp \
     npm@11.11.0 \
     esbuild@0.25.0
 
 # Install isolated-vm globally (needed for sandboxes)
-RUN --mount=type=cache,target=/root/.bun/install/cache \
-    cd /usr/src && bun install isolated-vm@6.2.0
+RUN     cd /usr/src && bun install isolated-vm@6.2.0
 
 ### STAGE 1: Build ###
 FROM base AS build
@@ -76,8 +74,7 @@ COPY .npmrc package.json bun.lock bunfig.toml ./
 COPY packages/ ./packages/
 
 # Install all dependencies with frozen lockfile
-RUN --mount=type=cache,target=/root/.bun/install/cache \
-    bun install --frozen-lockfile
+RUN     bun install --frozen-lockfile
 
 # Copy remaining source code (turbo config, etc.)
 COPY . .
@@ -139,8 +136,7 @@ COPY --from=build /usr/src/app/packages ./packages
 COPY --from=build /usr/src/app/dist/packages/engine/ ./dist/packages/engine/
 
 # Regenerate lockfile and install production dependencies (pieces were trimmed from workspace)
-RUN --mount=type=cache,target=/root/.bun/install/cache \
-    bun install --production
+RUN     bun install --production
 
 # Copy frontend files
 COPY --from=build /usr/src/app/dist/packages/web ./dist/packages/web/
