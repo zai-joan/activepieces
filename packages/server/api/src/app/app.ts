@@ -70,6 +70,7 @@ import { secretManagersModule } from './ee/secret-managers/secret-managers.modul
 import { signingKeyModule } from './ee/signing-key/signing-key-module'
 import { userModule } from './ee/users/user.module'
 import { fileModule } from './file/file.module'
+import { demoLinkModule } from './demo-link/demo-link.module'
 import { flagModule } from './flags/flag.module'
 import { flagHooks } from './flags/flags.hooks'
 import { flowPublishHooks, publishHooksFactory } from './flows/flow/flow-publish-hooks'
@@ -221,6 +222,7 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
     await systemJobsSchedule(app.log).init()
     await app.register(fileModule)
     await app.register(flagModule)
+    await app.register(demoLinkModule)
     await app.register(storeEntryModule)
     await app.register(folderModule)
     await pieceSyncService(app.log).setup()
