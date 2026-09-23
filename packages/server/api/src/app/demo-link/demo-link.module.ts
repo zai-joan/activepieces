@@ -145,7 +145,12 @@ async function startSeededConversation({ token, projectId, prompt, log }: StartS
         const created = await fetch(`${base}/v1/agents/conversations`, {
             method: 'POST',
             headers,
-            body: JSON.stringify({ title: 'Demo', builder: true, projectId }),
+            // Not builder: true. That surface builds a saved Agent, and
+            // ap_create_agent is gated on plan.agentsEnabled, which this licence
+            // does not grant — the agent researches pieces and then cannot build
+            // anything. The ordinary chat surface is the one holding ap_create_flow
+            // and ap_build_flow, which is the automation a prospect came to see.
+            body: JSON.stringify({ title: 'Demo', projectId }),
         })
         if (!created.ok) {
             log.error({ status: created.status }, '[demoLink] could not create the conversation')

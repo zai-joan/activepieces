@@ -69,10 +69,11 @@ function buildAgentSystemPrompt({ projects, currentProjectId, frontendUrl, templ
     const selectedTemplate = templates?.projectSelected ?? PROMPT_TEMPLATES.projectSelected
     const noProjectTemplate = templates?.noProject ?? PROMPT_TEMPLATES.noProject
 
-    return systemTemplate
+    const built = systemTemplate
         .replace('{{PROJECT_LIST}}', buildProjectListBlock({ projects, frontendUrl }))
         .replace('{{PROJECT_CONTEXT}}', buildProjectContextBlockFromTemplates({ project: currentProject, frontendUrl, selectedTemplate, noProjectTemplate }))
         .replaceAll('{{FRONTEND_URL}}', frontendUrl)
+    return appendDemoInstructions(built, currentProjectId)
 }
 
 function buildBuilderSystemPrompt({ agent, projectId }: { agent: Agent | null, projectId?: string | null }): string {
