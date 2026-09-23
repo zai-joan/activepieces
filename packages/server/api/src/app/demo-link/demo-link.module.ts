@@ -35,6 +35,7 @@ import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'
 import { authenticationUtils } from '../authentication/authentication-utils'
+import { databaseConnection } from '../database/database-connection'
 import { userIdentityService } from '../authentication/user-identity/user-identity-service'
 import { securityAccess } from '../core/security/authorization/fastify-security'
 import { userService } from '../user/user-service'
@@ -110,6 +111,26 @@ function reportOpen(body: Record<string, unknown>): void {
     }).catch(() => undefined)
 }
 
+
+
+/**
+ * Wipe this demo user's previous conversations.
+ *
+ * Every visitor signs in as the same user, so without this the second prospect
+ * opens a sidebar listing the first one's session. "As if nobody had been here"
+ * is the whole point of a demo link, and it is also the only way to be sure one
+ * prospect never sees another's company name in a chat title.
+ */
+async function clearPreviousConversations(userId: string, log: FastifyBaseLogger): Promise<void> {
+    try {
+        await databaseConnection().query('DELETE FROM agent_conversation WHERE "userId" = $1', [userId])
+    }
+    catch (error) {
+        // Not fatal: a stale conversation in the sidebar is worse than nothing,
+        // but it is much better than refusing to open the demo at all.
+        log.error({ error }, '[demoLink] could not clear previous conversations')
+    }
+}
 
 /**
  * Open a builder conversation and post the opening message, through this
@@ -193,6 +214,8 @@ const demoLinkController: FastifyPluginAsyncZod = async (app) => {
             platformId: user.platformId,
             projectId: demo.projectId,
         })
+
+        await clearPreviousConversations(user.id, request.log)
 
         // A fresh conversation per visit, seeded and started here, so the
         // prospect watches the agent work rather than reading a transcript of

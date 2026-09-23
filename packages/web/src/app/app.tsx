@@ -28,7 +28,7 @@ export function App() {
                 <TelemetryProvider>
                   <TooltipProvider>
                     <React.Fragment key={i18n.language}>
-                      <ThemeProvider storageKey="vite-ui-theme">
+                      <ThemeProvider storageKey="vite-ui-theme" defaultTheme="light">
                         <ApRouter />
                         <Toaster position="bottom-right" />
                         <ApErrorDialog />
