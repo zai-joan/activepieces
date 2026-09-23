@@ -2,11 +2,16 @@
  * Demo links — a fork-only addition, not upstream Activepieces.
  *
  * One public URL that a prospect can click from an email and land inside a
- * prepared conversation, signed in, with no sign-up and no password:
+ * conversation that is starting as they arrive, signed in, no sign-up:
  *
  *   /api/v1/demo-link/enter?k=<token>
  *      -> verify the token, mint a session for the demo user
- *      -> 302 /authenticate?response=<session>&redirect=/chat/<conversationId>
+ *      -> open a fresh builder conversation and post the opening message
+ *      -> 303 /authenticate?response=<session>&redirect=/chat/<conversationId>
+ *
+ * The conversation is created per visit rather than prepared in advance, so the
+ * prospect watches the agent think. Landing on a finished transcript is a much
+ * weaker opening, and it also goes stale the moment the flow builder changes.
  *
  * The token is an HMAC over {slug, recipient, name, issuedAt}. It is not a
  * secret that protects anything — a demo is public by design — it exists so an
@@ -19,12 +24,13 @@
  * which keeps rebasing onto a new upstream release close to mechanical.
  *
  *   AP_DEMO_LINK_SECRET   HMAC key, shared with whatever mints links
- *   AP_DEMO_LINKS         {"<slug>":{"email":"...","conversationId":"..."}}
+ *   AP_DEMO_LINKS         {"<slug>":{"email":..,"projectId":..,"prompt":..}}
  *   AP_DEMO_TRACKING_URL  optional; POSTed one JSON body per open
  */
 
 import { createHmac, timingSafeEqual } from 'crypto'
 import { isNil } from '@activepieces/core-utils'
+import { FastifyBaseLogger } from 'fastify'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'
@@ -37,7 +43,8 @@ const TOKEN_MAX_AGE_MS = 180 * 24 * 60 * 60 * 1000
 
 type DemoConfig = {
     email: string
-    conversationId: string
+    projectId: string
+    prompt: string
 }
 
 type TokenPayload = {
@@ -103,6 +110,55 @@ function reportOpen(body: Record<string, unknown>): void {
     }).catch(() => undefined)
 }
 
+
+/**
+ * Open a builder conversation and post the opening message, through this
+ * instance's own API so the agent starts exactly as it would for a real user.
+ * Returns the conversation to land on, or null if either call failed — the
+ * caller turns that into a 404 rather than dropping someone into a dead page.
+ */
+async function startSeededConversation({ token, projectId, prompt, log }: StartSeededConversationParams): Promise<string | null> {
+    const base = `http://127.0.0.1:${process.env.AP_PORT ?? 80}/api`
+    const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+    try {
+        const created = await fetch(`${base}/v1/agents/conversations`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ title: 'Demo', builder: true, projectId }),
+        })
+        if (!created.ok) {
+            log.error({ status: created.status }, '[demoLink] could not create the conversation')
+            return null
+        }
+        const { id } = await created.json() as { id: string }
+
+        // Not awaited for completion — this returns as soon as the run is
+        // claimed, which is what we want: the page should open while the agent
+        // is still thinking.
+        const sent = await fetch(`${base}/v1/agents/conversations/${id}/messages`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ content: prompt }),
+        })
+        if (!sent.ok) {
+            log.error({ status: sent.status, conversationId: id }, '[demoLink] could not post the opening message')
+            return null
+        }
+        return id
+    }
+    catch (error) {
+        log.error({ error }, '[demoLink] seeding the conversation failed')
+        return null
+    }
+}
+
+type StartSeededConversationParams = {
+    token: string
+    projectId: string
+    prompt: string
+    log: FastifyBaseLogger
+}
+
 export const demoLinkModule: FastifyPluginAsyncZod = async (app) => {
     app.register(demoLinkController, { prefix: '/v1/demo-link' })
 }
@@ -135,22 +191,37 @@ const demoLinkController: FastifyPluginAsyncZod = async (app) => {
         const session = await authenticationUtils(request.log).getProjectAndToken({
             userId: user.id,
             platformId: user.platformId,
-            projectId: null,
+            projectId: demo.projectId,
         })
+
+        // A fresh conversation per visit, seeded and started here, so the
+        // prospect watches the agent work rather than reading a transcript of
+        // it working earlier. Reusing one conversation would show them a
+        // finished answer, which is a much weaker thing to open on.
+        const conversationId = await startSeededConversation({
+            token: session.token,
+            projectId: demo.projectId,
+            prompt: demo.prompt,
+            log: request.log,
+        })
+
+        if (isNil(conversationId)) {
+            return reply.redirect('/404')
+        }
 
         reportOpen({
             event: 'opened',
             slug: payload.slug,
             recipient: payload.recipient,
             name: payload.name,
-            conversationId: demo.conversationId,
+            conversationId,
             ip: request.ip,
             userAgent: request.headers['user-agent'] ?? null,
             referrer: request.headers.referer ?? null,
             at: new Date().toISOString(),
         })
 
-        const redirect = `/chat/${encodeURIComponent(demo.conversationId)}`
+        const redirect = `/chat/${encodeURIComponent(conversationId)}`
         const target = `/authenticate?response=${encodeURIComponent(JSON.stringify(session))}&redirect=${encodeURIComponent(redirect)}`
         return reply.redirect(target, StatusCodes.SEE_OTHER)
     })
