@@ -3,6 +3,7 @@ import { agentAiUtils } from '@activepieces/server-utils'
 import { Agent, AgentActionOutcome, AgentIcon, AgentRunSource, AgentTool, agentToolClassification, AgentToolType, AppConnectionStatus, AppConnectionType, ApplicationEventName, ColorName, DEFAULT_AGENT_MAX_STEPS, FileCompression, FileType, FlowRunStatus, FlowStatus, mcpToolNameUtils, Project, RunEnvironment } from '@activepieces/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { appConnectionService } from '../../../app-connection/app-connection-service/app-connection-service'
+import { demoMode } from '../demo-mode'
 import { fileService } from '../../../file/file.service'
 import { filesService } from '../../../file/files-service'
 import { flowService } from '../../../flows/flow/flow.service'
@@ -292,7 +293,7 @@ async function resolveConnectionToPin({ piece, pieceName, projectId, platformId,
     projectId: string
     platformId: string
     log: FastifyBaseLogger
-}): Promise<{ externalId: string } | { error: string, accounts?: { label: string, externalId: string }[] }> {
+}): Promise<{ externalId: string | undefined } | { error: string, accounts?: { label: string, externalId: string }[] }> {
     const { data } = await appConnectionService(log).list({
         projectId,
         platformId,
@@ -304,6 +305,14 @@ async function resolveConnectionToPin({ piece, pieceName, projectId, platformId,
         externalIds: undefined,
         limit: ACCOUNT_CHOICE_LIMIT,
     })
+    if (demoMode.isDemoProject(projectId)) {
+        // Nothing is connected in a demo and nothing will be: the prospect
+        // clicked a link, they are not signing in to their own Gmail to watch a
+        // build. Pin no account and let the piece be added anyway — the tool
+        // below treats a missing connection as "leave auth unset", which is
+        // exactly the half-built state a demo is meant to show.
+        return { externalId: undefined }
+    }
     if (data.length === 0) {
         return { error: `No ${piece.displayName} account is connected in this project. Call ap_show_connection_picker for ${piece.displayName} so they can connect one here, then call ap_add_agent_tool again with the connectionExternalId it gives you. Do not add the tool without an account: the agent would have to ask which account on every single run.` }
     }

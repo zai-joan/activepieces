@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { isNil } from '@activepieces/core-utils'
 import { Agent, AgentConfig, AgentToolType, Project, ProjectType } from '@activepieces/shared'
+import { demoMode } from '../demo-mode'
 
 function loadPromptTemplate(filename: string): string {
     return readFileSync(path.resolve(`packages/server/api/src/assets/prompts/${filename}`), 'utf8')
@@ -89,47 +90,22 @@ function buildBuilderSystemPrompt({ agent, projectId }: { agent: Agent | null, p
 }
 
 /**
- * Fork-only: extra standing instructions for a demo instance, from
- * AP_DEMO_INSTRUCTIONS — a JSON object keyed by project id, with an optional
- * "default" entry for anything not listed:
+ * Fork-only: standing instructions for a demo instance, per prospect.
  *
- *   {"<projectId>": "...", "default": "..."}
- *
- * Keyed by project because each prospect gets their own, so what the agent is
- * told can be written for the company in front of it rather than being one
- * paragraph that has to suit everybody.
- *
- * These live in the system prompt rather than in the opening message for two
- * reasons. A prospect should read one human sentence about their own problem,
- * not a page of stage directions. And the directions say things like "the first
- * version does not have to run" — true, useful to the agent, and not what you
- * want someone reading out of the network tab mid-evaluation. Put in a message
- * and merely hidden on screen, the text still travels to their browser; here it
- * never leaves the server.
+ * These live in the system prompt rather than in the opening message. A prospect
+ * should read one human sentence about their own problem, not a page of stage
+ * directions — and the directions say things like "the first version does not
+ * have to run", which is true, useful to the agent, and not what you want
+ * someone reading out of the network tab mid-evaluation. A message merely hidden
+ * on screen still travels to their browser; this never leaves the server.
  *
  * Activepieces' own user-memory feature would be the natural home, but
  * `carriesChatContext` in agent-config-rpc is false for builder runs, so it is
  * never loaded for these conversations.
- *
- * Unset on a normal instance, so this returns the prompt untouched.
  */
 function appendDemoInstructions(prompt: string, projectId: string | null): string {
-    const raw = process.env.AP_DEMO_INSTRUCTIONS
-    if (isNil(raw) || raw.trim().length === 0) {
-        return prompt
-    }
-    let byProject: Record<string, string>
-    try {
-        byProject = JSON.parse(raw) as Record<string, string>
-    }
-    catch {
-        return prompt
-    }
-    const extra = (!isNil(projectId) ? byProject[projectId] : undefined) ?? byProject.default
-    if (isNil(extra) || extra.trim().length === 0) {
-        return prompt
-    }
-    return `${prompt}\n\n${extra.trim()}`
+    const extra = demoMode.instructionsFor(projectId)
+    return isNil(extra) ? prompt : `${prompt}\n\n${extra}`
 }
 
 function describeTools(tools: AgentConfig['tools']): string {
