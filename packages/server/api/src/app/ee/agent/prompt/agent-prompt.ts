@@ -105,7 +105,33 @@ function buildBuilderSystemPrompt({ agent, projectId }: { agent: Agent | null, p
  */
 function appendDemoInstructions(prompt: string, projectId: string | null): string {
     const extra = demoMode.instructionsFor(projectId)
-    return isNil(extra) ? prompt : `${prompt}\n\n${extra}`
+    if (isNil(extra)) {
+        return prompt
+    }
+    return `${withoutConnectionCaution(prompt)}\n\n${extra}`
+}
+
+/**
+ * The builder brief warns that adding a tool for an unconnected app will pester
+ * the person for a connection, and says to prefer what is already connected.
+ * Sound advice normally. In a demo nothing is connected at all, so the agent
+ * reads it as "add nothing", and describes an automation instead of building
+ * one — which is the single thing a demo must not do.
+ *
+ * Removed rather than argued with: a later instruction contradicting an earlier
+ * one leaves the model picking between them, and it picks the cautious one.
+ */
+const CONNECTION_CAUTION = ' A tool for an app the project has no connection to will ask this person for one, so prefer what is already connected unless they say otherwise.'
+
+function withoutConnectionCaution(prompt: string): string {
+    if (!prompt.includes(CONNECTION_CAUTION)) {
+        // Upstream reworded it. Say so: the failure is otherwise invisible —
+        // demos keep loading and quietly go back to describing rather than
+        // building, which is not something you notice until a prospect does.
+        console.warn('[demoMode] the builder brief no longer contains the connection caution; re-check that demos still build rather than describe')
+        return prompt
+    }
+    return prompt.replace(CONNECTION_CAUTION, '')
 }
 
 function describeTools(tools: AgentConfig['tools']): string {
