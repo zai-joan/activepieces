@@ -84,7 +84,28 @@ function buildBuilderSystemPrompt({ agent }: { agent: Agent | null }): string {
             `Tools: ${describeTools(agent.draft.tools)}`,
             'Your changes land as pending edits the person reviews. They go live when the person hits Save and go live, which is the only way anything is published, so say the change is ready for them to review rather than telling them to publish it.',
         ].join('\n')
-    return PROMPT_TEMPLATES.builder.replace('{{AGENT_STATE}}', state)
+    const base = PROMPT_TEMPLATES.builder.replace('{{AGENT_STATE}}', state)
+    return appendDemoInstructions(base)
+}
+
+/**
+ * Fork-only: extra standing instructions for a demo instance, from
+ * AP_DEMO_AGENT_INSTRUCTIONS.
+ *
+ * These belong in the system prompt rather than in the opening message, because
+ * a prospect should see a short human sentence about their own problem, not a
+ * page of stage directions telling the agent how to behave. Activepieces' own
+ * user-memory feature would be the natural home, but `carriesChatContext` in
+ * agent-config-rpc excludes builder runs, so it never loads for these.
+ *
+ * Unset on a normal instance, so this returns the prompt untouched.
+ */
+function appendDemoInstructions(prompt: string): string {
+    const extra = process.env.AP_DEMO_AGENT_INSTRUCTIONS
+    if (isNil(extra) || extra.trim().length === 0) {
+        return prompt
+    }
+    return `${prompt}\n\n${extra.trim()}`
 }
 
 function describeTools(tools: AgentConfig['tools']): string {
