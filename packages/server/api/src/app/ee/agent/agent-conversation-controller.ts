@@ -201,7 +201,7 @@ export const agentConversationController: FastifyPluginAsyncZod = async (app) =>
                 files,
                 ...spreadIfDefined('source', conversation.source === AgentRunSource.CHAT ? undefined : conversation.source),
                 ...spreadIfDefined('messageSource', request.body.messageSource),
-                ...(isBuilder ? { promptOverride: { system: agentPrompt.buildBuilderSystemPrompt({ agent }) } } : {}),
+                ...(isBuilder ? { promptOverride: { system: agentPrompt.buildBuilderSystemPrompt({ agent, projectId: conversation.projectId }) } } : {}),
                 ...(isNil(agentConfig) || isBuilder ? {} : agentHelpers.jobFieldsFromConfig({ config: agentConfig })),
             },
         })
