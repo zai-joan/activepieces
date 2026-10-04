@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query';
 import { t } from 'i18next';
 import { ExternalLink, X } from 'lucide-react';
 import { ReactNode, useState } from 'react';
@@ -11,8 +12,52 @@ import {
 } from '@/components/ui/tooltip';
 import { chatStoreSelectors } from '@/features/chat/lib/chat-store';
 import { useChatStoreContext } from '@/features/chat/lib/chat-store-context';
+import { flowsApi } from '@/features/flows/api/flows-api';
 import { authenticationSession } from '@/lib/authentication-session';
 import { useNewWindow } from '@/lib/navigation-utils';
+
+/**
+ * Which flow to actually put on the canvas.
+ *
+ * The flow id on a build event is typed out by the model — the tool that
+ * publishes the build card asks it to "set flowId as soon as ap_create_flow
+ * returns it" — so it is a claim, not a fact, and it is wrong often enough to
+ * matter: an id from an earlier attempt, or one announced before the flow was
+ * created. Opening it unchecked puts "Flow not found" in front of the prospect,
+ * which is the one thing this panel exists to avoid.
+ *
+ * So the project's own list decides. The claimed id is used when it appears
+ * there, and otherwise the newest flow in the project wins, which in a demo is
+ * the one being built right now. Until some flow exists we return nothing and
+ * the panel stays shut, polling, because the model usually says flowId a moment
+ * before there is anything to show.
+ */
+function useFlowToShow(
+  projectId: string | null,
+  claimedFlowId: string | undefined,
+): string | undefined {
+  const { data } = useQuery({
+    queryKey: ['chat-flow-stage', projectId, claimedFlowId],
+    enabled: projectId !== null && claimedFlowId !== undefined,
+    refetchInterval: (query) => (query.state.data ? false : 2000),
+    queryFn: async () => {
+      const page = await flowsApi.list({
+        projectId: projectId as string,
+        limit: 50,
+        cursor: undefined,
+      });
+      const flows = page.data;
+      if (flows.some((flow) => flow.id === claimedFlowId)) {
+        return claimedFlowId as string;
+      }
+      const newest = [...flows].sort((a, b) =>
+        a.created < b.created ? 1 : -1,
+      )[0];
+      return newest?.id ?? null;
+    },
+  });
+  return data ?? undefined;
+}
 
 /**
  * The flow, beside the chat, while it is being built.
@@ -116,14 +161,13 @@ export function ChatWithFlowStage({ children }: { children: ReactNode }) {
   // session. Closing hides this flow, not the feature: if the agent goes on to
   // build another one, that one opens.
   const projectId = liveFlow?.projectId ?? authenticationSession.getProjectId();
+  const flowId = useFlowToShow(projectId, liveFlow?.flowId);
   const stage =
-    liveFlow?.flowId !== undefined &&
-    projectId !== null &&
-    hiddenFor !== liveFlow.flowId
+    flowId !== undefined && projectId !== null && hiddenFor !== flowId
       ? {
-          flowId: liveFlow.flowId,
+          flowId,
           projectId,
-          flowName: liveFlow.flowName,
+          flowName: liveFlow?.flowName,
         }
       : null;
 
