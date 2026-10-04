@@ -24,6 +24,7 @@ import {
 import { piecesHooks } from '@/features/pieces';
 import { platformHooks } from '@/hooks/platform-hooks';
 import { useElementSize } from '@/hooks/use-element-size';
+import { isFramed } from '@/lib/is-framed';
 import { cn } from '@/lib/utils';
 
 import { BuilderHeader } from './builder-header/builder-header';
@@ -47,7 +48,7 @@ const BuilderPage = () => {
   const { platform } = platformHooks.useCurrentPlatform();
   const [
     flowVersion,
-    rightSidebar,
+    openRightSidebar,
     selectedStepName,
     removeAllStepTestsListeners,
     selectedStep,
@@ -77,6 +78,15 @@ const BuilderPage = () => {
   flowCanvasHooks.useShowBuilderIsSavingWarningBeforeLeaving();
   const middlePanelRef = useRef<HTMLDivElement>(null);
   const middlePanelSize = useElementSize(middlePanelRef);
+  // Framed, the builder is the panel beside the demo chat, and the panel is
+  // only as wide as half a screen. The settings drawer takes a fixed slice of
+  // that and squeezes the canvas to a strip — and the first thing it shows for
+  // most steps is a connection picker, which is the one control a prospect must
+  // not be invited to use. Collapsing it leaves the whole panel to the canvas,
+  // which is what someone watching their automation appear is there to see.
+  // Everything below already handles NONE by giving the sidebar no width.
+  const rightSidebar = isFramed() ? RightSideBarType.NONE : openRightSidebar;
+
   const [isDraggingHandle, setIsDraggingHandle] = useState(false);
   useEffect(() => {
     const handlePointerUp = () => setIsDraggingHandle(false);

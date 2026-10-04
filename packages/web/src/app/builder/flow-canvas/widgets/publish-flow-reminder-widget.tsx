@@ -21,6 +21,7 @@ import { flowHooks, flowsApi } from '@/features/flows';
 import { projectCollectionUtils } from '@/features/projects';
 import { useAuthorization } from '@/hooks/authorization-hooks';
 import { platformHooks } from '@/hooks/platform-hooks';
+import { isFramed } from '@/lib/is-framed';
 
 import { useBuilderStateContext } from '../../builder-hooks';
 
@@ -97,7 +98,11 @@ const PublishFlowReminderWidget = () => {
       },
     });
 
-  if (!showShouldPublishButton) {
+  // Framed, this sits over the canvas in the demo chat's panel, where nobody is
+  // going to publish anything — the prospect is watching an automation being
+  // written, not shipping it — and an unread warning across the top of it is
+  // just something that looks wrong.
+  if (!showShouldPublishButton || isFramed()) {
     return null;
   }
   const showLoading = isPublishing || isDiscardingChanges || isSaving;
