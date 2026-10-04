@@ -78,9 +78,7 @@ export function DemoStartPage() {
             </h1>
             <p className="mt-4 mb-12 text-center text-base sm:text-lg text-muted-foreground max-w-xl">
               {options?.company
-                ? t('Pick one and watch it get built for {{company}}, step by step.', {
-                    company: options.company,
-                  })
+                ? `${t('Pick one and watch it get built for')} ${options.company}, ${t('step by step.')}`
                 : t('Pick one and watch it get built, step by step.')}
             </p>
 

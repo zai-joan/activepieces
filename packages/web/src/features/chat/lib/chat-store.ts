@@ -253,11 +253,14 @@ function selectBuildById({
  * updated build that has reached a flow — which is the one the person is
  * watching. Returns undefined until a flow exists, so the panel stays shut
  * while the agent is still researching rather than flashing an empty canvas.
+ *
+ * Only flowId is required: the build event leaves projectId null in practice,
+ * and the caller takes it from the session instead.
  */
 function selectLiveFlow(state: ChatStoreState): BuildState | undefined {
   let latest: BuildState | undefined;
   for (const build of Object.values(state.builds)) {
-    if (!build.flowId || !build.projectId) {
+    if (!build.flowId) {
       continue;
     }
     if (!latest || build.updatedAt > latest.updatedAt) {

@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/tooltip';
 import { chatStoreSelectors } from '@/features/chat/lib/chat-store';
 import { useChatStoreContext } from '@/features/chat/lib/chat-store-context';
+import { authenticationSession } from '@/lib/authentication-session';
 import { useNewWindow } from '@/lib/navigation-utils';
 
 /**
@@ -108,9 +109,11 @@ export function ChatWithFlowStage({ children }: { children: ReactNode }) {
   // Checked directly rather than through a boolean so the narrowing survives
   // into the JSX below. Closing hides this flow, not the feature: if the agent
   // goes on to build another one, that one opens.
+  const projectId = liveFlow?.projectId ?? authenticationSession.getProjectId();
+
   if (
     liveFlow?.flowId === undefined ||
-    liveFlow.projectId === undefined ||
+    projectId === null ||
     hiddenFor === liveFlow.flowId
   ) {
     return <>{children}</>;
@@ -124,7 +127,7 @@ export function ChatWithFlowStage({ children }: { children: ReactNode }) {
       <div className="hidden lg:flex flex-col min-w-0 min-h-0 flex-[1.3] basis-0 overflow-hidden">
         <FlowStage
           flowId={liveFlow.flowId}
-          projectId={liveFlow.projectId}
+          projectId={projectId}
           flowName={liveFlow.flowName}
           onClose={() => setHiddenFor(liveFlow.flowId)}
         />
