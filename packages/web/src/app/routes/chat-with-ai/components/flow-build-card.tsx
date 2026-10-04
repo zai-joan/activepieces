@@ -19,6 +19,8 @@ import { authenticationSession } from '@/lib/authentication-session';
 import { useNewWindow } from '@/lib/navigation-utils';
 import { cn } from '@/lib/utils';
 
+import { useFlowToShow } from '../lib/use-flow-to-show';
+
 const CARD_BASE = 'bg-[#f9f7f2] dark:bg-[#1e1b18]';
 
 export function FlowBuildCard({
@@ -33,6 +35,9 @@ export function FlowBuildCard({
   const build = useChatStoreContext((s) =>
     chatStoreSelectors.buildById({ state: s, buildId }),
   );
+  // Resolved before the early return below, because hooks cannot be skipped.
+  const projectId = build?.projectId ?? authenticationSession.getProjectId();
+  const flowId = useFlowToShow(projectId, build?.flowId);
 
   if (!build) return activity ? <>{activity}</> : null;
 
@@ -41,10 +46,14 @@ export function FlowBuildCard({
   const percentage = total > 0 ? Math.round((done / total) * 100) : 0;
   const isDone = build.phase === 'done';
   const isFailed = build.phase === 'failed';
-  const projectId = build.projectId ?? authenticationSession.getProjectId();
   const tagline = build.tagline ?? t('Less busywork, coming right up');
   const iconName = build.iconName ?? 'sparkles';
-  const hasActions = isDone && build.flowId && projectId;
+  // An object rather than a boolean so the narrowing survives into the JSX:
+  // the resolver returns undefined until a flow really exists.
+  const actions =
+    isDone && flowId !== undefined && projectId !== null
+      ? { flowId, projectId }
+      : null;
 
   return (
     <motion.div
@@ -83,11 +92,11 @@ export function FlowBuildCard({
         </ul>
       </div>
 
-      {(activity || hasActions) && (
+      {(activity || actions !== null) && (
         <div className="mx-5 space-y-3 border-t border-foreground/[0.07] pb-5 pt-4">
           {activity && <div className="min-w-0">{activity}</div>}
 
-          {isDone && build.flowId && projectId && (
+          {actions !== null && (
             <div className="flex flex-wrap items-center gap-1.5">
               <Button
                 size="sm"
@@ -104,8 +113,8 @@ export function FlowBuildCard({
                 {t('Enable')}
               </Button>
               <OpenInBuilderButton
-                projectId={projectId}
-                flowId={build.flowId}
+                projectId={actions.projectId}
+                flowId={actions.flowId}
               />
             </div>
           )}
