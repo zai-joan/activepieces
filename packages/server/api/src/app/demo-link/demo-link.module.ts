@@ -191,7 +191,12 @@ async function clearPreviousWork({ token, projectId, log }: ClearPreviousWorkPar
                 continue
             }
             const page = await listed.json() as { data?: { id: string }[] }
-            for (const item of page.data ?? []) {
+            const items = page.data ?? []
+            // Logged every time, not only on failure: when this quietly finds
+            // nothing the demo still opens, so an empty sweep is invisible
+            // otherwise and the next visitor inherits the last one's work.
+            log.info({ collection, found: items.length }, '[demoLink] clearing previous work')
+            for (const item of items) {
                 const removed = await fetch(`${base}/v1/${collection}/${item.id}`, { method: 'DELETE', headers })
                 if (!removed.ok) {
                     log.error({ collection, id: item.id, status: removed.status }, '[demoLink] could not delete previous work')
