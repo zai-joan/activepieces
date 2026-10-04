@@ -1,5 +1,5 @@
 import { t } from 'i18next';
-import { ExternalLink, X } from 'lucide-react';
+import { ExternalLink, PanelRight, X } from 'lucide-react';
 import { ReactNode, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -128,10 +128,26 @@ export function ChatWithFlowStage({ children }: { children: ReactNode }) {
         }
       : null;
 
+  const hidden = flowId !== undefined && hiddenFor === flowId;
+
   return (
     <div className="flex h-full min-h-0 w-full overflow-hidden">
-      <div className="flex flex-col min-w-0 min-h-0 flex-1 basis-0 overflow-hidden">
+      <div className="relative flex flex-col min-w-0 min-h-0 flex-1 basis-0 overflow-hidden">
         {children}
+        {/* Closing the panel used to be final: nothing brought it back until the
+            agent happened to build a different flow, so a prospect who shut it
+            to read the chat had quietly ended the demo's best part. */}
+        {hidden && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="hidden lg:inline-flex absolute bottom-24 right-4 gap-1.5 shadow-sm"
+            onClick={() => setHiddenFor(null)}
+          >
+            <PanelRight className="h-3.5 w-3.5" />
+            {t('Show automation')}
+          </Button>
+        )}
       </div>
       {stage !== null && (
         <div className="hidden lg:flex flex-col min-w-0 min-h-0 flex-[1.3] basis-0 overflow-hidden">
