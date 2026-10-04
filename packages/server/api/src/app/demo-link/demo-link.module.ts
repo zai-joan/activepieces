@@ -38,14 +38,28 @@ import { authenticationUtils } from '../authentication/authentication-utils'
 import { databaseConnection } from '../database/database-connection'
 import { userIdentityService } from '../authentication/user-identity/user-identity-service'
 import { securityAccess } from '../core/security/authorization/fastify-security'
+import { platformService } from '../platform/platform.service'
 import { userService } from '../user/user-service'
 
 const TOKEN_MAX_AGE_MS = 180 * 24 * 60 * 60 * 1000
 
+type DemoUseCase = {
+    id: string
+    title: string
+    blurb: string
+    prompt: string
+}
+
 type DemoConfig = {
     email: string
     projectId: string
-    prompt: string
+    company?: string
+    /**
+     * What this prospect is offered on the way in. A single entry skips the
+     * chooser and opens straight into the chat, which is what a link built for
+     * one specific conversation should do.
+     */
+    useCases: DemoUseCase[]
 }
 
 type TokenPayload = {
@@ -185,11 +199,45 @@ type StartSeededConversationParams = {
     log: FastifyBaseLogger
 }
 
+async function resolvePlatformId(demo: DemoConfig, log: FastifyBaseLogger): Promise<string> {
+    const identity = await userIdentityService(log).getIdentityByEmail(demo.email)
+    const users = isNil(identity) ? [] : await userService(log).getByIdentityId({ identityId: identity.id })
+    const platformId = users.find((candidate) => !isNil(candidate.platformId))?.platformId
+    if (isNil(platformId)) {
+        throw new Error('demo user has no platform')
+    }
+    return platformId
+}
+
+function pickUseCase(demo: DemoConfig, requested: string | undefined): DemoUseCase | undefined {
+    if (isNil(requested)) {
+        return demo.useCases.length === 1 ? demo.useCases[0] : undefined
+    }
+    return demo.useCases.find((useCase) => useCase.id === requested)
+}
+
 export const demoLinkModule: FastifyPluginAsyncZod = async (app) => {
     app.register(demoLinkController, { prefix: '/v1/demo-link' })
 }
 
 const demoLinkController: FastifyPluginAsyncZod = async (app) => {
+    app.get('/options', OptionsRequest, async (request, reply) => {
+        const payload = verifyToken(request.query.k)
+        if (isNil(payload)) {
+            return reply.status(StatusCodes.NOT_FOUND).send({ error: 'Unknown link' })
+        }
+        const demo = demoConfigs()[payload.slug]
+        if (isNil(demo)) {
+            return reply.status(StatusCodes.NOT_FOUND).send({ error: 'Unknown link' })
+        }
+        const platform = await platformService(request.log).getOneOrThrow(await resolvePlatformId(demo, request.log))
+        return reply.send({
+            company: demo.company ?? platform.name,
+            logoUrl: platform.fullLogoUrl,
+            useCases: demo.useCases.map(({ id, title, blurb }) => ({ id, title, blurb })),
+        })
+    })
+
     app.get('/enter', EnterDemoRequest, async (request, reply) => {
         const payload = verifyToken(request.query.k)
         if (isNil(payload)) {
@@ -197,8 +245,16 @@ const demoLinkController: FastifyPluginAsyncZod = async (app) => {
         }
 
         const demo = demoConfigs()[payload.slug]
-        if (isNil(demo)) {
+        if (isNil(demo) || demo.useCases.length === 0) {
             return reply.redirect('/404')
+        }
+
+        // More than one thing on offer and nothing picked yet: show the chooser.
+        // Letting them choose is most of the point — a prospect who picked the
+        // problem is watching their own problem get solved, not a canned demo.
+        const useCase = pickUseCase(demo, request.query.use)
+        if (isNil(useCase)) {
+            return reply.redirect(`/demo?k=${encodeURIComponent(request.query.k)}`)
         }
 
         const identity = await userIdentityService(request.log).getIdentityByEmail(demo.email)
@@ -229,7 +285,7 @@ const demoLinkController: FastifyPluginAsyncZod = async (app) => {
         const conversationId = await startSeededConversation({
             token: session.token,
             projectId: demo.projectId,
-            prompt: demo.prompt,
+            prompt: useCase.prompt,
             log: request.log,
         })
 
@@ -255,6 +311,18 @@ const demoLinkController: FastifyPluginAsyncZod = async (app) => {
     })
 }
 
+const OptionsRequest = {
+    config: {
+        security: securityAccess.public(),
+    },
+    schema: {
+        description: 'What this demo link offers',
+        querystring: z.object({
+            k: z.string(),
+        }),
+    },
+}
+
 const EnterDemoRequest = {
     config: {
         security: securityAccess.public(),
@@ -263,6 +331,7 @@ const EnterDemoRequest = {
         description: 'Open a prospect demo link',
         querystring: z.object({
             k: z.string(),
+            use: z.string().optional(),
         }),
     },
 }

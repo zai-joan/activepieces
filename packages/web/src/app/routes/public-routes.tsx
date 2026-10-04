@@ -9,6 +9,7 @@ import { TemplateDetailsWrapper } from '../guards/template-details-wrapper';
 
 import NotFoundPage from './404-page';
 import AuthenticatePage from './authenticate';
+import { DemoStartPage } from './demo-start';
 import { EmbedPage } from './embed';
 import { EmbeddedConnectionDialog } from './embed/embedded-connection-dialog';
 import { EmbeddedMcpAuthorizeDialog } from './embed/embedded-mcp-authorize-dialog';
@@ -53,6 +54,14 @@ export const publicRoutes = [
   {
     path: '/authenticate',
     element: <AuthenticatePage />,
+  },
+  {
+    path: '/demo',
+    element: (
+      <PageTitle title="Demo">
+        <DemoStartPage />
+      </PageTitle>
+    ),
   },
   {
     path: '/templates',
