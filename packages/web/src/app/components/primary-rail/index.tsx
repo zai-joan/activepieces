@@ -71,6 +71,7 @@ import {
 import { flagsHooks } from '@/hooks/flags-hooks';
 import { platformHooks } from '@/hooks/platform-hooks';
 import { userHooks } from '@/hooks/user-hooks';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { authenticationSession } from '@/lib/authentication-session';
 import { cn } from '@/lib/utils';
 
@@ -89,8 +90,14 @@ export function PrimaryRail() {
   const collapsed = railIsCollapsed({ preference, pathname, openedOn });
   const showAgents = useAgentsNavVisible();
   const { checkAccess } = useAuthorization();
+  const isMobile = useIsMobile();
 
-  if (embedState.isEmbedded || embedState.hideSideNav) {
+  // The rail is a fixed 248px and has no collapsed-for-small-screens state, so
+  // on a phone it took two thirds of the width and left the page it was next to
+  // wrapping one word per line. A demo link gets opened on a phone — it arrives
+  // by email — and the chat is the whole point, so the rail stands down and
+  // gives it the screen.
+  if (embedState.isEmbedded || embedState.hideSideNav || isMobile) {
     return null;
   }
 
