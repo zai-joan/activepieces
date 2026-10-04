@@ -183,24 +183,21 @@ type ClearPreviousWorkParams = {
 async function clearPreviousWork({ token, projectId, log }: ClearPreviousWorkParams): Promise<void> {
     const base = `http://127.0.0.1:${process.env.AP_PORT ?? 80}/api`
     const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+    log.error({ base, projectId }, '[demoLink] sweep starting')
     for (const collection of ['flows', 'tables', 'agents']) {
         try {
             const listed = await fetch(`${base}/v1/${collection}?projectId=${projectId}&limit=100`, { headers })
+            const raw = await listed.text()
+            log.error({ collection, status: listed.status, body: raw.slice(0, 300) }, '[demoLink] sweep listed')
             if (!listed.ok) {
-                log.error({ collection, status: listed.status }, '[demoLink] could not list previous work')
                 continue
             }
-            const page = await listed.json() as { data?: { id: string }[] }
+            const page = JSON.parse(raw) as { data?: { id: string }[] }
             const items = page.data ?? []
-            // Logged every time, not only on failure: when this quietly finds
-            // nothing the demo still opens, so an empty sweep is invisible
-            // otherwise and the next visitor inherits the last one's work.
-            log.info({ collection, found: items.length }, '[demoLink] clearing previous work')
+            log.error({ collection, found: items.length }, '[demoLink] clearing previous work')
             for (const item of items) {
                 const removed = await fetch(`${base}/v1/${collection}/${item.id}`, { method: 'DELETE', headers })
-                if (!removed.ok) {
-                    log.error({ collection, id: item.id, status: removed.status }, '[demoLink] could not delete previous work')
-                }
+                log.error({ collection, id: item.id, status: removed.status }, '[demoLink] sweep deleted')
             }
         }
         catch (error) {
