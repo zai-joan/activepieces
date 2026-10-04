@@ -157,6 +157,53 @@ async function clearPreviousConversations(userId: string, log: FastifyBaseLogger
     }
 }
 
+type ClearPreviousWorkParams = {
+    token: string
+    projectId: string
+    log: FastifyBaseLogger
+}
+
+/**
+ * Empty the project of everything the last visitor built.
+ *
+ * Conversations alone are not enough. The chat leaves automations, tables and
+ * saved agents behind it, and every prospect signs in as the same user into the
+ * same project, so the second one arrives to find the first one's work sitting
+ * in the sidebar — often under that company's name. A demo has to open on an
+ * empty desk or it is not a demo of anything.
+ *
+ * Done over this instance's own API rather than in SQL: deleting a flow also
+ * unpublishes its triggers and clears its runs, and a DELETE that goes through
+ * the service gets all of that for free. A hand-written DELETE would leave the
+ * project subtly broken in ways that only show up mid-demo.
+ *
+ * Nothing here is fatal. Leftovers are untidy; refusing to open the demo is
+ * worse, so every failure is logged and stepped over.
+ */
+async function clearPreviousWork({ token, projectId, log }: ClearPreviousWorkParams): Promise<void> {
+    const base = `http://127.0.0.1:${process.env.AP_PORT ?? 80}/api`
+    const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+    for (const collection of ['flows', 'tables', 'agents']) {
+        try {
+            const listed = await fetch(`${base}/v1/${collection}?projectId=${projectId}&limit=100`, { headers })
+            if (!listed.ok) {
+                log.error({ collection, status: listed.status }, '[demoLink] could not list previous work')
+                continue
+            }
+            const page = await listed.json() as { data?: { id: string }[] }
+            for (const item of page.data ?? []) {
+                const removed = await fetch(`${base}/v1/${collection}/${item.id}`, { method: 'DELETE', headers })
+                if (!removed.ok) {
+                    log.error({ collection, id: item.id, status: removed.status }, '[demoLink] could not delete previous work')
+                }
+            }
+        }
+        catch (error) {
+            log.error({ error, collection }, '[demoLink] could not clear previous work')
+        }
+    }
+}
+
 /**
  * Open a builder conversation and post the opening message, through this
  * instance's own API so the agent starts exactly as it would for a real user.
@@ -293,6 +340,11 @@ const demoLinkController: FastifyPluginAsyncZod = async (app) => {
         })
 
         await clearPreviousConversations(user.id, request.log)
+        await clearPreviousWork({
+            token: session.token,
+            projectId: demo.projectId,
+            log: request.log,
+        })
 
         // A fresh conversation per visit, seeded and started here, so the
         // prospect watches the agent work rather than reading a transcript of

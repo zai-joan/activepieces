@@ -1,7 +1,7 @@
 import { t } from 'i18next';
 import { Info } from 'lucide-react';
 
-import { useEmbedding } from '@/components/providers/embed-provider';
+import { isFramed } from '@/lib/is-framed';
 
 /**
  * A standing notice that this is a demo.
@@ -19,9 +19,7 @@ import { useEmbedding } from '@/components/providers/embed-provider';
  * the chat and the banner is already on screen directly above it.
  */
 export function DemoInstanceBanner() {
-  const { embedState } = useEmbedding();
-
-  if (embedState.isEmbedded) {
+  if (isFramed()) {
     return null;
   }
 

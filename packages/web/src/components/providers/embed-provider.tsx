@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState } from 'react';
 
+import { isFramed } from '@/lib/is-framed';
 import { cn } from '@/lib/utils';
 
 type EmbeddingState = {
@@ -67,30 +68,27 @@ type EmbeddingProviderProps = {
  * app — rail, sidebar, header, demo banner and all. Nested inside a half-width
  * panel that reads as a broken copy of the page it is already sitting on.
  *
- * Being framed is the signal. The embedding SDK already hides this chrome for
- * the same reason and every flag below is honoured by the real components, so
- * this reuses them rather than inventing a second stripped-down builder that
- * would drift from the first.
+ * Every flag below is honoured by the real components, which is why this reuses
+ * them rather than inventing a second stripped-down builder that would drift
+ * from the first.
+ *
+ * isEmbedded is deliberately NOT set. It means more than "chrome off": it swaps
+ * the browser router for a memory router, which is right for an SDK host that
+ * drives navigation by postMessage and wrong here, where the whole point is for
+ * the frame's URL to choose the flow. With it set, every framed route rendered
+ * the default page while the address bar still read the flow. hideSideNav alone
+ * takes the rail away, which is what was actually wanted.
  *
  * Read once, before the first render, so no one watches the sidebar appear and
  * then vanish. A frame cannot stop being a frame, so there is nothing to watch
  * for afterwards.
  */
 function initialEmbeddingState(): EmbeddingState {
-  const framed = (() => {
-    try {
-      return window.self !== window.top;
-    } catch {
-      // Cross-origin parent: the access throws, which is itself the answer.
-      return true;
-    }
-  })();
-  if (!framed) {
+  if (!isFramed()) {
     return defaultState;
   }
   return {
     ...defaultState,
-    isEmbedded: true,
     hideSideNav: true,
     hidePageHeader: true,
     hideFlowsPageNavbar: true,
