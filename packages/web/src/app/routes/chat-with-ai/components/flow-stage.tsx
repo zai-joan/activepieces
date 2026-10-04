@@ -97,41 +97,51 @@ export function FlowStage({
  * Sits inside the chat store provider, because what is being built is held in
  * that store — the page outside it cannot see the build at all.
  *
- * Until a flow exists the chat is full width, so nothing shifts while the agent
- * is still researching. Below a wide screen the panel drops away and the chat
- * takes the whole width — two panes on a narrow window leaves both unreadable,
- * and the chat still offers a link out to the builder.
+ * The wrapper is always rendered, even with no flow to show, and only the right
+ * hand panel comes and goes. This is not tidiness: children must keep the same
+ * position in the tree. Swapping between a fragment and a wrapper div unmounts
+ * the whole chat underneath, which restarts the conversation, which clears the
+ * builds the panel is watching — so the panel closes, the chat remounts, and it
+ * goes round again. It costs an empty flex row to stay still.
+ *
+ * Below a wide screen the panel drops away and the chat takes the whole width —
+ * two panes on a narrow window leaves both unreadable, and the chat still offers
+ * a link out to the builder.
  */
 export function ChatWithFlowStage({ children }: { children: ReactNode }) {
   const liveFlow = useChatStoreContext(chatStoreSelectors.liveFlow);
   const [hiddenFor, setHiddenFor] = useState<string | null>(null);
 
-  // Checked directly rather than through a boolean so the narrowing survives
-  // into the JSX below. Closing hides this flow, not the feature: if the agent
-  // goes on to build another one, that one opens.
+  // The build event leaves projectId unset in practice, so fall back to the
+  // session. Closing hides this flow, not the feature: if the agent goes on to
+  // build another one, that one opens.
   const projectId = liveFlow?.projectId ?? authenticationSession.getProjectId();
-
-  if (
-    liveFlow?.flowId === undefined ||
-    projectId === null ||
-    hiddenFor === liveFlow.flowId
-  ) {
-    return <>{children}</>;
-  }
+  const stage =
+    liveFlow?.flowId !== undefined &&
+    projectId !== null &&
+    hiddenFor !== liveFlow.flowId
+      ? {
+          flowId: liveFlow.flowId,
+          projectId,
+          flowName: liveFlow.flowName,
+        }
+      : null;
 
   return (
     <div className="flex h-full min-h-0 w-full overflow-hidden">
       <div className="flex flex-col min-w-0 min-h-0 flex-1 basis-0 overflow-hidden">
         {children}
       </div>
-      <div className="hidden lg:flex flex-col min-w-0 min-h-0 flex-[1.3] basis-0 overflow-hidden">
-        <FlowStage
-          flowId={liveFlow.flowId}
-          projectId={projectId}
-          flowName={liveFlow.flowName}
-          onClose={() => setHiddenFor(liveFlow.flowId)}
-        />
-      </div>
+      {stage !== null && (
+        <div className="hidden lg:flex flex-col min-w-0 min-h-0 flex-[1.3] basis-0 overflow-hidden">
+          <FlowStage
+            flowId={stage.flowId}
+            projectId={stage.projectId}
+            flowName={stage.flowName}
+            onClose={() => setHiddenFor(stage.flowId)}
+          />
+        </div>
+      )}
     </div>
   );
 }
