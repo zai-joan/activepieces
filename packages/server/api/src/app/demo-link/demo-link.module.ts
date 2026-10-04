@@ -160,7 +160,6 @@ async function clearPreviousConversations(userId: string, log: FastifyBaseLogger
 type ClearPreviousWorkParams = {
     token: string
     projectId: string
-    log: FastifyBaseLogger
 }
 
 /**
@@ -180,28 +179,32 @@ type ClearPreviousWorkParams = {
  * Nothing here is fatal. Leftovers are untidy; refusing to open the demo is
  * worse, so every failure is logged and stepped over.
  */
-async function clearPreviousWork({ token, projectId, log }: ClearPreviousWorkParams): Promise<void> {
+async function clearPreviousWork({ token, projectId }: ClearPreviousWorkParams): Promise<void> {
     const base = `http://127.0.0.1:${process.env.AP_PORT ?? 80}/api`
-    const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
-    console.error('[demoLink] sweep starting', JSON.stringify({ base, projectId }))
+    // No content-type. These requests carry no body, and announcing JSON on an
+    // empty one makes Fastify reject it with a 400 before the route is reached,
+    // which is exactly what happened: every list succeeded, every delete came
+    // back 400, and the sweep reported nothing because only the listing was
+    // being checked. The seeded conversation never hit it because a POST has a
+    // body to go with the header.
+    const headers = { Authorization: `Bearer ${token}` }
     for (const collection of ['flows', 'tables', 'agents']) {
         try {
             const listed = await fetch(`${base}/v1/${collection}?projectId=${projectId}&limit=100`, { headers })
-            const raw = await listed.text()
-            console.error('[demoLink] sweep listed', JSON.stringify({ collection, status: listed.status, body: raw.slice(0, 300) }))
             if (!listed.ok) {
+                console.error(`[demoLink] could not list ${collection}: ${listed.status}`)
                 continue
             }
-            const page = JSON.parse(raw) as { data?: { id: string }[] }
-            const items = page.data ?? []
-            console.error('[demoLink] clearing previous work', JSON.stringify({ collection, found: items.length }))
-            for (const item of items) {
+            const page = await listed.json() as { data?: { id: string }[] }
+            for (const item of page.data ?? []) {
                 const removed = await fetch(`${base}/v1/${collection}/${item.id}`, { method: 'DELETE', headers })
-                console.error('[demoLink] sweep deleted', JSON.stringify({ collection, id: item.id, status: removed.status }))
+                if (!removed.ok) {
+                    console.error(`[demoLink] could not delete ${collection}/${item.id}: ${removed.status}`)
+                }
             }
         }
         catch (error) {
-            console.error('[demoLink] could not clear previous work', collection, String(error))
+            console.error(`[demoLink] could not clear ${collection}`, String(error))
         }
     }
 }
@@ -355,7 +358,6 @@ const demoLinkController: FastifyPluginAsyncZod = async (app) => {
         await clearPreviousWork({
             token: session.token,
             projectId: demo.projectId,
-            log: request.log,
         })
 
         // A fresh conversation per visit, seeded and started here, so the
