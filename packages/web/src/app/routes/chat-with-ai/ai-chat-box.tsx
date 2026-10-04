@@ -34,6 +34,7 @@ import { platformHooks } from '@/hooks/platform-hooks';
 import { userHooks } from '@/hooks/user-hooks';
 import { cn } from '@/lib/utils';
 
+import { ChatWithFlowStage } from './components/flow-stage';
 import { AssistantMessage } from './components/assistant-message';
 import { ChatBottomBar } from './components/chat-bottom-bar';
 import {
@@ -72,18 +73,20 @@ export function AIChatBox({
 
   return (
     <ChatStoreProvider>
-      <ChatBoxContent
-        incognito={incognito}
-        agentId={agentId}
-        builder={builder}
-        onTurnEnd={onTurnEnd}
-        emptyState={emptyState}
-        footerNote={footerNote}
-        placeholder={placeholder}
-        conversationId={conversationId}
-        onTitleUpdate={onTitleUpdate}
-        onConversationCreated={onConversationCreated}
-      />
+      <ChatWithFlowStage>
+        <ChatBoxContent
+          incognito={incognito}
+          agentId={agentId}
+          builder={builder}
+          onTurnEnd={onTurnEnd}
+          emptyState={emptyState}
+          footerNote={footerNote}
+          placeholder={placeholder}
+          conversationId={conversationId}
+          onTitleUpdate={onTitleUpdate}
+          onConversationCreated={onConversationCreated}
+        />
+      </ChatWithFlowStage>
     </ChatStoreProvider>
   );
 }

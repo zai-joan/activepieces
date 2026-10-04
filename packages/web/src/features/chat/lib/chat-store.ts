@@ -246,6 +246,30 @@ function selectBuildById({
   return state.builds[buildId];
 }
 
+/**
+ * The flow this conversation is building, for the panel beside the chat.
+ *
+ * A conversation can touch several flows, so this takes the most recently
+ * updated build that has reached a flow — which is the one the person is
+ * watching. Returns undefined until a flow exists, so the panel stays shut
+ * while the agent is still researching rather than flashing an empty canvas.
+ */
+function selectLiveFlow(state: ChatStoreState): BuildState | undefined {
+  let latest: BuildState | undefined;
+  for (const build of Object.values(state.builds)) {
+    if (!build.flowId || !build.projectId) {
+      continue;
+    }
+    if (!latest || build.updatedAt > latest.updatedAt) {
+      latest = build;
+    }
+  }
+  // Returns the stored build rather than a fresh object: a selector that builds
+  // a new object on every call gives zustand a new reference each render, and
+  // the component re-renders forever.
+  return latest;
+}
+
 function mergeBuildPlan({
   builds,
   event,
@@ -271,6 +295,7 @@ export const chatStoreSelectors = {
   hasBlockingCard: selectHasBlockingCard,
   batchProgress: selectBatchProgress,
   buildById: selectBuildById,
+  liveFlow: selectLiveFlow,
 };
 
 export const chatBuildUtils = {
