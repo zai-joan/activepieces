@@ -183,25 +183,25 @@ type ClearPreviousWorkParams = {
 async function clearPreviousWork({ token, projectId, log }: ClearPreviousWorkParams): Promise<void> {
     const base = `http://127.0.0.1:${process.env.AP_PORT ?? 80}/api`
     const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
-    log.error({ base, projectId }, '[demoLink] sweep starting')
+    console.error('[demoLink] sweep starting', JSON.stringify({ base, projectId }))
     for (const collection of ['flows', 'tables', 'agents']) {
         try {
             const listed = await fetch(`${base}/v1/${collection}?projectId=${projectId}&limit=100`, { headers })
             const raw = await listed.text()
-            log.error({ collection, status: listed.status, body: raw.slice(0, 300) }, '[demoLink] sweep listed')
+            console.error('[demoLink] sweep listed', JSON.stringify({ collection, status: listed.status, body: raw.slice(0, 300) }))
             if (!listed.ok) {
                 continue
             }
             const page = JSON.parse(raw) as { data?: { id: string }[] }
             const items = page.data ?? []
-            log.error({ collection, found: items.length }, '[demoLink] clearing previous work')
+            console.error('[demoLink] clearing previous work', JSON.stringify({ collection, found: items.length }))
             for (const item of items) {
                 const removed = await fetch(`${base}/v1/${collection}/${item.id}`, { method: 'DELETE', headers })
-                log.error({ collection, id: item.id, status: removed.status }, '[demoLink] sweep deleted')
+                console.error('[demoLink] sweep deleted', JSON.stringify({ collection, id: item.id, status: removed.status }))
             }
         }
         catch (error) {
-            log.error({ error, collection }, '[demoLink] could not clear previous work')
+            console.error('[demoLink] could not clear previous work', collection, String(error))
         }
     }
 }
