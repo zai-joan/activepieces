@@ -124,12 +124,19 @@ function appendDemoInstructions(prompt: string, projectId: string | null): strin
  */
 const CONNECTION_CAUTION = ' A tool for an app the project has no connection to will ask this person for one, so prefer what is already connected unless they say otherwise.'
 
+let warnedAboutMissingCaution = false
+
 function withoutConnectionCaution(prompt: string): string {
     if (!prompt.includes(CONNECTION_CAUTION)) {
-        // Upstream reworded it. Say so: the failure is otherwise invisible —
-        // demos keep loading and quietly go back to describing rather than
-        // building, which is not something you notice until a prospect does.
-        console.warn('[demoMode] the builder brief no longer contains the connection caution; re-check that demos still build rather than describe')
+        // Upstream reworded it, or this surface never carried it. Say so once:
+        // the failure is otherwise invisible — demos keep loading and quietly go
+        // back to describing rather than building, which is not something you
+        // notice until a prospect does. Once per process, because this runs on
+        // every prompt build and a line per message buries the real errors.
+        if (!warnedAboutMissingCaution) {
+            warnedAboutMissingCaution = true
+            console.warn('[demoMode] the builder brief no longer contains the connection caution; re-check that demos still build rather than describe')
+        }
         return prompt
     }
     return prompt.replace(CONNECTION_CAUTION, '')
