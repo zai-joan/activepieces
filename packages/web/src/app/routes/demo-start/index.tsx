@@ -93,8 +93,8 @@ export function DemoStartPage() {
             </h1>
             <p className="mt-4 mb-12 text-center text-base sm:text-lg text-muted-foreground max-w-xl">
               {options?.company
-                ? `${t('Pick one and watch it get built for')} ${options.company}, ${t('step by step.')}`
-                : t('Pick one and watch it get built, step by step.')}
+                ? `${t('A demo instance, set up to show what Activepieces can do for')} ${options.company}. ${t('Pick one and watch it get built.')}`
+                : t('A demo instance. Pick one and watch it get built.')}
             </p>
 
             <div className="w-full grid gap-4">
@@ -148,11 +148,11 @@ export function DemoStartPage() {
               )}
             </div>
 
-            <p className="mt-10 text-center text-sm text-muted-foreground">
-              {chosen
-                ? t('Setting it up…')
-                : t('Nothing to install, and nothing to connect.')}
-            </p>
+            {chosen && (
+              <p className="mt-10 text-center text-sm text-muted-foreground">
+                {t('Setting it up…')}
+              </p>
+            )}
           </>
         )}
       </div>

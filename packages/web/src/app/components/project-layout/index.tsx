@@ -10,6 +10,7 @@ import { ChartLineIcon } from '@/components/icons/chart-line';
 import { CompassIcon } from '@/components/icons/compass';
 import { useEmbedding } from '@/components/providers/embed-provider';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar-shadcn';
+import { DemoInstanceBanner } from '../demo-instance-banner';
 import { CreditsUsageAlert, ManagePlanDialog } from '@/features/billing';
 import { projectHooks } from '@/features/projects';
 import { flagsHooks } from '@/hooks/flags-hooks';
@@ -164,6 +165,7 @@ function ProjectDashboardLayoutInner({
               {!hideHeader && (
                 <ProjectDashboardLayoutHeader key={currentProjectId} />
               )}
+              <DemoInstanceBanner />
               <CreditsUsageAlert />
               <div className="flex-1 overflow-auto">{children}</div>
             </div>
