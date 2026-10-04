@@ -307,35 +307,45 @@ const demoLinkController: FastifyPluginAsyncZod = async (app) => {
     })
 
     app.get('/enter', EnterDemoRequest, async (request, reply) => {
+        // Everything that can go wrong here lands on the demo page rather than
+        // the app's 404. A prospect holding a link that no longer works should
+        // read one sentence about the link, not "Oops! Page Not Found" over a
+        // Go Home button that walks them into a sign-in screen for a product
+        // they have not bought.
         const payload = verifyToken(request.query.k)
         if (isNil(payload)) {
-            return reply.redirect('/404')
+            return reply.redirect('/demo')
         }
 
         const demo = demoConfigs()[payload.slug]
         if (isNil(demo) || demo.useCases.length === 0) {
-            return reply.redirect('/404')
+            return reply.redirect('/demo')
         }
 
         // More than one thing on offer and nothing picked yet: show the chooser.
         // Letting them choose is most of the point — a prospect who picked the
         // problem is watching their own problem get solved, not a canned demo.
+        // Their link is good, so anything that fails from here is ours. Send
+        // them back to the chooser rather than to an error: picking again is a
+        // real second chance, and it costs them one click instead of an email.
+        const retryUrl = `/demo?k=${encodeURIComponent(request.query.k)}`
+
         const useCase = pickUseCase(demo, request.query.use)
         if (isNil(useCase)) {
-            return reply.redirect(`/demo?k=${encodeURIComponent(request.query.k)}`)
+            return reply.redirect(retryUrl)
         }
 
         const identity = await userIdentityService(request.log).getIdentityByEmail(demo.email)
         if (isNil(identity)) {
             request.log.error({ slug: payload.slug }, '[demoLink] demo user does not exist')
-            return reply.redirect('/404')
+            return reply.redirect(retryUrl)
         }
 
         const users = await userService(request.log).getByIdentityId({ identityId: identity.id })
         const user = users.find((candidate) => !isNil(candidate.platformId))
         if (isNil(user) || isNil(user.platformId)) {
             request.log.error({ slug: payload.slug }, '[demoLink] demo user has no platform')
-            return reply.redirect('/404')
+            return reply.redirect(retryUrl)
         }
 
         const session = await authenticationUtils(request.log).getProjectAndToken({
@@ -363,7 +373,7 @@ const demoLinkController: FastifyPluginAsyncZod = async (app) => {
         })
 
         if (isNil(conversationId)) {
-            return reply.redirect('/404')
+            return reply.redirect(retryUrl)
         }
 
         reportOpen({
