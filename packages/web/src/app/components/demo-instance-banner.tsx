@@ -1,6 +1,8 @@
 import { t } from 'i18next';
 import { Info } from 'lucide-react';
 
+import { useEmbedding } from '@/components/providers/embed-provider';
+
 /**
  * A standing notice that this is a demo.
  *
@@ -12,9 +14,17 @@ import { Info } from 'lucide-react';
  * The two links are the point of the demo, so they sit in the same line rather
  * than waiting at the end of a call.
  *
- * Shown everywhere, unconditionally: this build only ever runs as a demo.
+ * Shown on every page of the workspace, because this build only ever runs as a
+ * demo — except inside a frame, where the workspace is the flow panel beside
+ * the chat and the banner is already on screen directly above it.
  */
 export function DemoInstanceBanner() {
+  const { embedState } = useEmbedding();
+
+  if (embedState.isEmbedded) {
+    return null;
+  }
+
   return (
     <div className="shrink-0 flex flex-wrap items-center gap-x-1.5 gap-y-1 border-b bg-muted/40 px-4 py-2 text-xs text-muted-foreground">
       <Info className="h-3.5 w-3.5 shrink-0" />
@@ -29,7 +39,7 @@ export function DemoInstanceBanner() {
           rel="noreferrer"
           className="underline underline-offset-2 hover:text-foreground"
         >
-          {t('Start free')}
+          {t('Start now')}
         </a>
         <a
           href="https://activepieces.com/sales"

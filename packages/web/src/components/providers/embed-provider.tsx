@@ -59,8 +59,55 @@ type EmbeddingProviderProps = {
   children: React.ReactNode;
 };
 
+/**
+ * The dashboard rendered inside a frame is never the whole product.
+ *
+ * The demo chat puts the flow builder in a panel beside the conversation, and
+ * the builder is a route rather than a component, so the frame loads the real
+ * app — rail, sidebar, header, demo banner and all. Nested inside a half-width
+ * panel that reads as a broken copy of the page it is already sitting on.
+ *
+ * Being framed is the signal. The embedding SDK already hides this chrome for
+ * the same reason and every flag below is honoured by the real components, so
+ * this reuses them rather than inventing a second stripped-down builder that
+ * would drift from the first.
+ *
+ * Read once, before the first render, so no one watches the sidebar appear and
+ * then vanish. A frame cannot stop being a frame, so there is nothing to watch
+ * for afterwards.
+ */
+function initialEmbeddingState(): EmbeddingState {
+  const framed = (() => {
+    try {
+      return window.self !== window.top;
+    } catch {
+      // Cross-origin parent: the access throws, which is itself the answer.
+      return true;
+    }
+  })();
+  if (!framed) {
+    return defaultState;
+  }
+  return {
+    ...defaultState,
+    isEmbedded: true,
+    hideSideNav: true,
+    hidePageHeader: true,
+    hideFlowsPageNavbar: true,
+    disableNavigationInBuilder: true,
+    hideHomeButtonInBuilder: true,
+    hideGlobalSearch: true,
+    hideActiveUsers: true,
+    hideFolders: true,
+    hideExportAndImportFlow: true,
+    hideDuplicateFlow: true,
+    // The dimming overlay is for a pop-out over the page, not a panel beside it.
+    useDarkBackground: false,
+  };
+}
+
 const EmbeddingProvider = ({ children }: EmbeddingProviderProps) => {
-  const [state, setState] = useState<EmbeddingState>(defaultState);
+  const [state, setState] = useState<EmbeddingState>(initialEmbeddingState);
 
   return (
     <EmbeddingContext.Provider
