@@ -43,11 +43,22 @@ import { userService } from '../user/user-service'
 
 const TOKEN_MAX_AGE_MS = 180 * 24 * 60 * 60 * 1000
 
+type DemoTool = {
+    name: string
+    logoUrl: string
+}
+
 type DemoUseCase = {
     id: string
     title: string
     blurb: string
     prompt: string
+    /**
+     * The apps this one touches, shown on the card. Named here rather than
+     * guessed from the prompt so the row on screen is a promise we control:
+     * what the agent reaches for should match what they were shown.
+     */
+    tools?: DemoTool[]
 }
 
 type DemoConfig = {
@@ -234,7 +245,12 @@ const demoLinkController: FastifyPluginAsyncZod = async (app) => {
         return reply.send({
             company: demo.company ?? platform.name,
             logoUrl: platform.fullLogoUrl,
-            useCases: demo.useCases.map(({ id, title, blurb }) => ({ id, title, blurb })),
+            useCases: demo.useCases.map(({ id, title, blurb, tools }) => ({
+                id,
+                title,
+                blurb,
+                tools: tools ?? [],
+            })),
         })
     })
 

@@ -2,10 +2,16 @@ import { t } from 'i18next';
 import { ArrowRight } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+type Tool = {
+  name: string;
+  logoUrl: string;
+};
+
 type UseCase = {
   id: string;
   title: string;
   blurb: string;
+  tools: Tool[];
 };
 
 type DemoOptions = {
@@ -59,13 +65,22 @@ export function DemoStartPage() {
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center px-6 py-16 bg-gradient-to-b from-primary-100/40 via-background to-background">
       <div className="w-full max-w-3xl flex flex-col items-center">
-        {options?.logoUrl && (
+        {/* Both marks, theirs first. It reads as a meeting rather than a
+            pitch, and it quietly answers the question a prospect has on an
+            unfamiliar page: whose software am I looking at. */}
+        <div className="flex items-center gap-5 mb-10">
+          {options?.logoUrl && (
+            <img src={options.logoUrl} alt="" className="h-8 w-auto opacity-90" />
+          )}
+          {options?.logoUrl && (
+            <span className="h-6 w-px bg-border" aria-hidden="true" />
+          )}
           <img
-            src={options.logoUrl}
-            alt=""
-            className="h-9 w-auto mb-10 opacity-90"
+            src={ACTIVEPIECES_LOGO}
+            alt="Activepieces"
+            className="h-7 w-auto opacity-90"
           />
-        )}
+        </div>
 
         {failed ? (
           <p className="text-muted-foreground text-center">
@@ -108,6 +123,20 @@ export function DemoStartPage() {
                         <div className="mt-1 text-sm text-muted-foreground">
                           {useCase.blurb}
                         </div>
+                        {useCase.tools.length > 0 && (
+                          <div className="mt-3 flex items-center gap-1.5">
+                            {useCase.tools.map((tool) => (
+                              <img
+                                key={tool.name}
+                                src={tool.logoUrl}
+                                alt={tool.name}
+                                title={tool.name}
+                                loading="lazy"
+                                className="h-5 w-5 rounded-[4px] object-contain"
+                              />
+                            ))}
+                          </div>
+                        )}
                       </div>
                       <ArrowRight
                         className="h-5 w-5 shrink-0 text-muted-foreground transition
@@ -134,9 +163,13 @@ export function DemoStartPage() {
 // Three, because that is what every demo offers — so the page holds its shape
 // while the real ones load instead of jumping when they arrive.
 const PLACEHOLDERS: UseCase[] = [
-  { id: '1', title: '', blurb: '' },
-  { id: '2', title: '', blurb: '' },
-  { id: '3', title: '', blurb: '' },
+  { id: '1', title: '', blurb: '', tools: [] },
+  { id: '2', title: '', blurb: '', tools: [] },
+  { id: '3', title: '', blurb: '', tools: [] },
 ];
+
+// Ours, not the platform's: the instance is branded for the prospect, so the
+// platform logo is already theirs.
+const ACTIVEPIECES_LOGO = 'https://cdn.activepieces.com/brand/full-logo.png';
 
 export default DemoStartPage;
